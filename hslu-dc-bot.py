@@ -17,7 +17,8 @@ async def on_ready():
     with open("botLog.log", "a+") as f:
         f.write(str(datetime.now()) + f" {bot.user.name} - {bot.user.id} login\n")
 
-@bot.command(name='newProject', help='Erzeugt eine neue Kategorie')
+
+@bot.command(name='newProject', help='Erzeugt eine neue Kategorie', aliases=["nP", "newP"])
 async def newProject(ctx, projectName=""):
     channel = bot.get_channel(ctx.channel.id)
     if ctx.channel.id != int(BOTCHANNEL_ID):
@@ -49,7 +50,7 @@ async def newProject(ctx, projectName=""):
         f.write(str(datetime.now()) + f" {ctx.author} - {ctx.command} cmd\n")
 
 
-@bot.command(name='adminProject', help='Erzeugt eine neue Kategorie mit bestimmter anzahl channels (admins only)')
+@bot.command(name='adminProject', help='Erzeugt eine neue Kategorie mit bestimmter anzahl channels (admins only)', aliases=["aP", "adP", "adminP"])
 async def adminProject(ctx, projectName="", textChannels=1, voiceChannels=1):
     channel = bot.get_channel(ctx.channel.id)
     role = ctx.guild.get_role(int(ADMINGROUP_ID))
