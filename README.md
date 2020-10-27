@@ -9,5 +9,7 @@ Also Commands are only allowed in a specific channel
 
 Examples:
 Create Project
+
 $newProject PROJECTNAME
+
 $newProject "PROJECT NAME WITH SPECIAL CHARACTERS"
