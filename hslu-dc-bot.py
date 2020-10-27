@@ -2,6 +2,8 @@ import os
 import random
 import discord
 import asyncio
+import re
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -13,22 +15,22 @@ ADMINGROUP_ID = os.getenv('ADMINGROUP_ID')
 
 bot = commands.Bot(command_prefix='$')
 
+# if command not in botchannel
 async def channelCheck(ctx, channel):
-    # if command in wrong channel
     if ctx.channel.id != int(BOTCHANNEL_ID):
-        await channel.send("Neue Projekte können nur im Botchannel angelegt werden 🤖")
+        await channel.send("Dieses Kommando ist nur im botchannel gültig 🤖")
         return False
     return True
 
+# if projectName not specified
 async def projectNameCheck(projectName, channel):
-    # if projectName not specified
     if projectName == "":
         await channel.send("Gib ein Projektnamen an! 🤖")
         return False
     return True
 
+# if project already exists
 async def categoryCheck(ctx, projectName):
-    # if project already exists
     existing_category = discord.utils.get(ctx.guild.categories, name=projectName)
     channel = bot.get_channel(ctx.channel.id)
     if existing_category:
@@ -36,6 +38,7 @@ async def categoryCheck(ctx, projectName):
         return False
     return True
 
+# check if user in admingroup
 async def adminCheck(ctx, channel):
     role = ctx.guild.get_role(int(ADMINGROUP_ID))
     if role not in ctx.author.roles:
@@ -46,6 +49,23 @@ async def adminCheck(ctx, channel):
         return False
     return True
 
+# if command in a botbefehle channel
+async def innerChannelCheck(ctx, channel):
+    if  channel.name != "botbefehle":
+        await channel.send("Neue Chats innerhalb von Projekten können nur im jeweiligen botbefehle channel angelegt werden 🤖")
+        return False
+    return True
+
+# dockerstyle names for random chats
+def getFancyName():
+    name: str
+    with open("names_left.json") as jsonFile:
+        data = json.load(jsonFile)
+        name = random.choice(data)
+    with open("names_right.json") as jsonFile:
+        data = json.load(jsonFile)
+        name += "-" + random.choice(data)
+    return name
 
 @bot.event
 async def on_ready():
@@ -53,7 +73,7 @@ async def on_ready():
         f.write(str(datetime.now()) + f" {bot.user.name} - {bot.user.id} login\n")
 
 
-@bot.command(name='newProject', help='Erzeugt ein neues Projekt mit Textchat', aliases=["nP", "np", "newP"])
+@bot.command(name='newProject', help='Erzeugt ein neues Projekt mit Textchat', aliases=["nP", "np"])
 async def newProject(ctx, projectName=""):
     channel = bot.get_channel(ctx.channel.id)
     if not await channelCheck(ctx, channel) or not await projectNameCheck(projectName, channel) or not await categoryCheck(ctx, projectName):
@@ -73,7 +93,7 @@ async def newProject(ctx, projectName=""):
         f.write(str(datetime.now()) + f" {ctx.author} - {ctx.command} cmd\n")
 
 
-@bot.command(name='adminProject', help='Erzeugt eine neue Kategorie mit bestimmter anzahl channels (admins only)', aliases=["aP", "ap", "adP", "adminP"])
+@bot.command(name='adminProject', help='Erzeugt eine neue Kategorie mit bestimmter anzahl channels (admins only)', aliases=["aP", "ap"])
 async def adminProject(ctx, projectName="", textChannels=1, voiceChannels=1):
     channel = bot.get_channel(ctx.channel.id)
     if not await adminCheck(ctx, channel) or not await channelCheck(ctx, channel) or not await projectNameCheck(projectName, channel) or not await categoryCheck(ctx, projectName):
@@ -98,7 +118,7 @@ async def adminProject(ctx, projectName="", textChannels=1, voiceChannels=1):
         f.write(str(datetime.now()) + f" {ctx.author} - {ctx.command} cmd\n")
 
 
-@bot.command(name="deleteProject", help="Delete a project and all channels in it (admin only, careful!)", aliases=["dP", "dp", "delP", "deleteP"])
+@bot.command(name="deleteProject", help="Delete a project and all channels in it (admin only, careful!)", aliases=["dP", "dp"])
 async def deleteProject(ctx, projectName=""):
     channel = bot.get_channel(ctx.channel.id)
     
@@ -130,6 +150,54 @@ async def deleteProject(ctx, projectName=""):
         await channel.send(f"Das projekt **{projectName}** wurde gelöscht von {ctx.author.mention} 🤖❌")
         with open("botLog.log", "a+") as f:
             f.write(str(datetime.now()) + f" {ctx.author} - {ctx.command} - {projectName} cmd\n")
+
+
+@bot.command(name='newText', help='Erzeugt einen neuen Textchat', aliases=["nT", "nt"])
+async def newText(ctx, tcName=""):
+    channel = bot.get_channel(ctx.channel.id)
+    if not await innerChannelCheck(ctx, channel):
+        return
+    
+    if tcName == "":
+        tcName = getFancyName()
+    await channel.send(f'Neuer Textchannel **{tcName}** wird erstellt 🦾')
+    await ctx.guild.create_text_channel(f"{tcName}", category=channel.category)
+
+
+@bot.command(name='newVoice', help='Erzeugt einen neuen Voicechat', aliases=["nV", "nv"])
+async def newVoice(ctx, vcName=""):
+    channel = bot.get_channel(ctx.channel.id)
+    if not await innerChannelCheck(ctx, channel):
+        return
+
+    if vcName == "":
+        vcName = getFancyName()
+    await channel.send(f'Neuer Voicechannel **{vcName}** wird erstellt 🦾')
+    await ctx.guild.create_voice_channel(f"{vcName}", category=channel.category)
+        
+
+@bot.command(name="newUser", help="Fügt einen oder mehrere User einem Projekt hinzu", aliases=["nU", "nu"])
+async def newUser(ctx, projectName=""):
+    channel = bot.get_channel(ctx.channel.id)
+    if not await channelCheck(ctx, channel) or not await projectNameCheck(projectName, channel):
+        return
+
+    category = discord.utils.get(ctx.guild.categories, name=projectName)
+    if not category:
+        await channel.send(f"Dieses Projekt existiert nicht 🤖!")
+        return
+
+    for mention in ctx.message.mentions:
+        user = bot.get_user(mention.id)
+        if not isinstance(user, discord.abc.User):
+            await channel.send("Kein valider user. markiere mit @ und wähle die Person(en) aus der Liste 🤖")
+            return
+        await category.set_permissions(user, read_messages=True)
+        await channel.send(f"User {user} wurde dem Projekt {projectName} hinzugefügt 🤖")
+        return
+    # only happening if ctx.message.mentions is empty
+    await channel.send("Keine validen User angegeben 🤖")
+    
 
 
 # run this shit
