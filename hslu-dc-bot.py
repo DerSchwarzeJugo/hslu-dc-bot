@@ -50,10 +50,10 @@ async def adminCheck(ctx, channel):
         return False
     return True
 
-# if command in a botbefehle channel
+# if command in a botcommands channel
 async def innerChannelCheck(ctx, channel):
-    if  channel.name != "botbefehle":
-        await channel.send("Neue Chats innerhalb von Projekten können nur im jeweiligen botbefehle channel angelegt werden 🤖")
+    if  channel.name != "botcommands":
+        await channel.send("Neue Chats innerhalb von Projekten können nur im jeweiligen botcommands channel angelegt werden 🤖")
         return False
     return True
 
@@ -86,7 +86,7 @@ async def setUpHelpEmbed(ctx):
             adEmbed.add_field(name=f"{cp}deleteProject", value=help, inline=False)
             await ctx.channel.send(embed=adEmbed)
 
-# botbefehle help
+# botcommands help
 async def setUpInlineHelpEmbed(channel):
     cp = bot.command_prefix
     embed = discord.Embed(
@@ -94,7 +94,7 @@ async def setUpInlineHelpEmbed(channel):
         title="BotHelp",
         description=f"{cp}help Zeigt dieses Menü"
     )
-    if channel.name == "botbefehle":
+    if channel.name == "botcommands":
         help = f'[{cp}nt | {cp}nT] \nErzeugt einen neuen Textchat in diesem Projekt\n--> {cp}newText | {cp}newText NAME'
         embed.add_field(name=f"{cp}newText", value=help, inline=False)
         help = f'[{cp}nV | {cp}nV] \nErzeugt einen neuen Voicechat in diesem Projekt\n--> {cp}nv | {cp}nv NAME'
@@ -138,7 +138,7 @@ async def newProject(ctx, projectName=""):
         ctx.author: discord.PermissionOverwrite(read_messages=True)
     }
     category = await ctx.guild.create_category(projectName, overwrites = overwrites)
-    botchannel= await ctx.guild.create_text_channel("botbefehle", category=category)
+    botchannel= await ctx.guild.create_text_channel("botcommands", category=category)
     await ctx.guild.create_text_channel("chat 1", category=category)
     await setUpInlineHelpEmbed(botchannel)
     with open("botLog.log", "a+") as f:
@@ -159,7 +159,7 @@ async def adminProject(ctx, projectName="", textChannels=1, voiceChannels=1):
         ctx.author: discord.PermissionOverwrite(read_messages=True)
     }
     category = await ctx.guild.create_category(projectName, overwrites=overwrites)
-    botchannel = await ctx.guild.create_text_channel("botbefehle", category=category)
+    botchannel = await ctx.guild.create_text_channel("botcommands", category=category)
     await setUpInlineHelpEmbed(botchannel)
     for i in range(textChannels):
         count = i + 1
