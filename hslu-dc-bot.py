@@ -137,7 +137,7 @@ async def newProject(ctx, projectName=""):
         ctx.guild.me: discord.PermissionOverwrite(read_messages=True),
         ctx.author: discord.PermissionOverwrite(read_messages=True)
     }
-    category = await ctx.guild.create_category(projectName, overwrites = overwrites)
+    category = await ctx.guild.create_category(projectName, overwrites = overwrites, position=1)
     botchannel= await ctx.guild.create_text_channel("botcommands", category=category)
     await ctx.guild.create_text_channel("chat 1", category=category)
     await setUpInlineHelpEmbed(botchannel)
@@ -158,7 +158,7 @@ async def adminProject(ctx, projectName="", textChannels=1, voiceChannels=1):
         ctx.guild.me: discord.PermissionOverwrite(read_messages=True),
         ctx.author: discord.PermissionOverwrite(read_messages=True)
     }
-    category = await ctx.guild.create_category(projectName, overwrites=overwrites)
+    category = await ctx.guild.create_category(projectName, overwrites=overwrites, position=1)
     botchannel = await ctx.guild.create_text_channel("botcommands", category=category)
     await setUpInlineHelpEmbed(botchannel)
     for i in range(textChannels):
@@ -185,7 +185,7 @@ async def deleteProject(ctx, projectName=""):
 
     # confirmation function
     def check(m):
-        return m.channel == channel and m.content == "ja"
+        return m.channel == channel and m.content == "ja" or m.content == "Ja"
 
     await channel.send(f"**{projectName}** wirklich löschen? Bestätige mit ja 🤖")
     # get confirmation if user really wants to delete a project
@@ -251,7 +251,7 @@ async def newUser(ctx, projectName=""):
             await channel.send("Kein valider user. Markiere mit @ und wähle die Person(en) aus der Liste 🤖")
             continue
         await category.set_permissions(user, read_messages=True)
-        await channel.send(f"User {user} wurde dem **Projekt** {projectName} hinzugefügt 🤖")
+        await channel.send(f"User **{user}** wurde dem Projekt **{projectName}** hinzugefügt 🤖")
         with open("botLog.log", "a+") as f:
             f.write(str(datetime.now()) + f" {ctx.author} - {ctx.command} - {user} - {projectName} cmd\n")
         counter+=1
@@ -260,6 +260,49 @@ async def newUser(ctx, projectName=""):
         # only happening if ctx.message.mentions is empty
         await channel.send("Keine validen User angegeben 🤖")
     
+
+@bot.command(name="archive", aliases=["arch"])
+async def archive(ctx, projectName=""):
+    channel = bot.get_channel(ctx.channel.id)
+
+    if not await adminCheck(ctx, channel) or not await channelCheck(ctx, channel) or not await projectNameCheck(projectName, channel):
+        return
+
+    category = discord.utils.get(ctx.guild.categories, name=projectName)
+    if not category:
+        await channel.send(f"Dieses Projekt existiert nicht 🤖!")
+        return
+
+    # confirmation function
+    def check(m):
+        return m.channel == channel and m.content == "ja" or m.content == "Ja"
+
+    await channel.send(f"**{projectName}** wirklich archivieren? Bestätige mit ja 🤖")
+    # get confirmation if user really wants to archive a project
+    try:
+        await bot.wait_for('message', check=check, timeout=5.0)
+    except asyncio.TimeoutError:
+        await channel.send("du hast zu lange gebraucht 😷")
+        return
+    else:
+        # move to end of all projects
+        newPosition = len(ctx.guild.categories)
+        # overwriting the permissions
+        overwrites = {
+            ctx.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            ctx.guild.me: discord.PermissionOverwrite(read_messages=True),
+        }
+        for tchannel in category.text_channels:
+            await tchannel.edit(overwrites=overwrites)
+        
+        for vchannel in category.voice_channels:
+            await vchannel.edit(overwrites=overwrites)
+
+        await category.edit(name=f"archive-{projectName}", reason="Moved to archive manually", position=newPosition, overwrites= overwrites)
+        await channel.send(f"Das projekt **{projectName}** wurde archiviert von {ctx.author.mention} 🤖🗄️")
+        with open("botLog.log", "a+") as f:
+            f.write(str(datetime.now()) +
+                    f" {ctx.author} - {ctx.command} - {projectName} cmd\n")
 
 
 # run this shit
