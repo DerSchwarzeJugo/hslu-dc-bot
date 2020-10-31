@@ -13,7 +13,7 @@ CAPITAL = parameters
 [] = optional arguments
 $ = command prefix
 
-**$help** can be typed in the botchannel and in the created Projects inside the botcommands channel to show this help section
+**$help** can be typed in the botchannel and in the created Projects inside the botcommands channel to show this help section and give clues about short forms of the methods
 
 
 Examples of possible commands in the botchannel:
@@ -35,6 +35,10 @@ Admins can create projects with multiple channels at once (x = amount of textcha
 Admins can also delete projects. After using the command u will be asked to confirm the deletion
 
 **$deleteProject** PROJECTNAME
+
+Admins can as well archive projects (move to end of list, prefix projectname with archive and hide for all standard users)
+
+**$archive** PROJECTNAME
 
 Examples of possible commands in the created projects botcommands channel:
 

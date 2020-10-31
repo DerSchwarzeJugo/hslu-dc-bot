@@ -84,6 +84,8 @@ async def setUpHelpEmbed(ctx):
             adEmbed.add_field(name=f"{cp}adminProject", value=help, inline=False)
             help = f"[{cp}dp | {cp}dP] \nProjekt inkl. aller channels löschen\n--> {cp}dP NAME"
             adEmbed.add_field(name=f"{cp}deleteProject", value=help, inline=False)
+            help = f"[{cp}arch] \nProjekt inkl. aller channels archivieren\n--> {cp}arch NAME"
+            adEmbed.add_field(name=f"{cp}archive", value=help, inline=False)
             await ctx.channel.send(embed=adEmbed)
 
 # botcommands help
@@ -118,7 +120,7 @@ async def on_ready():
         f.write(str(datetime.now()) + f" {bot.user.name} - {bot.user.id} login\n")
 
 
-@bot.command(name="help", aliases=["HELP","helpp","heelp"])
+@bot.command(name="help", aliases=["HELP","helpp","heelp","h"])
 async def help(ctx):
     await setUpHelpEmbed(ctx)
     await setUpInlineHelpEmbed(ctx.channel)
