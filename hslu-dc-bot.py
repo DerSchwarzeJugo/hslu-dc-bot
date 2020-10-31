@@ -244,18 +244,21 @@ async def newUser(ctx, projectName=""):
         await channel.send(f"Dieses Projekt existiert nicht 🤖!")
         return
 
+    counter = 0
     for mention in ctx.message.mentions:
         user = bot.get_user(mention.id)
         if not isinstance(user, discord.abc.User):
             await channel.send("Kein valider user. Markiere mit @ und wähle die Person(en) aus der Liste 🤖")
-            return
+            continue
         await category.set_permissions(user, read_messages=True)
         await channel.send(f"User {user} wurde dem **Projekt** {projectName} hinzugefügt 🤖")
         with open("botLog.log", "a+") as f:
             f.write(str(datetime.now()) + f" {ctx.author} - {ctx.command} - {user} - {projectName} cmd\n")
-        return
-    # only happening if ctx.message.mentions is empty
-    await channel.send("Keine validen User angegeben 🤖")
+        counter+=1
+    
+    if counter == 0:
+        # only happening if ctx.message.mentions is empty
+        await channel.send("Keine validen User angegeben 🤖")
     
 
 
