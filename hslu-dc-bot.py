@@ -146,7 +146,8 @@ async def newProject(ctx, projectName=""):
         ctx.guild.me: discord.PermissionOverwrite(read_messages=True),
         ctx.author: discord.PermissionOverwrite(read_messages=True)
     }
-    category = await ctx.guild.create_category(projectName, overwrites = overwrites, position=1)
+    category = await ctx.guild.create_category(projectName, overwrites = overwrites)
+    await category.edit(position=0)
     botchannel= await ctx.guild.create_text_channel("botcommands", category=category)
     await ctx.guild.create_text_channel("chat 1", category=category)
     await setUpInlineHelpEmbed(botchannel)
@@ -167,7 +168,8 @@ async def adminProject(ctx, projectName="", textChannels=1, voiceChannels=1):
         ctx.guild.me: discord.PermissionOverwrite(read_messages=True),
         ctx.author: discord.PermissionOverwrite(read_messages=True)
     }
-    category = await ctx.guild.create_category(projectName, overwrites=overwrites, position=1)
+    category = await ctx.guild.create_category(projectName, overwrites=overwrites)
+    await category.edit(position=0)
     botchannel = await ctx.guild.create_text_channel("botcommands", category=category)
     await setUpInlineHelpEmbed(botchannel)
     for i in range(textChannels):
