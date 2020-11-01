@@ -214,7 +214,14 @@ async def deleteProject(ctx, projectName=""):
     else:
         for tchannel in category.text_channels:
             await tchannel.delete(reason="Manuell gelöscht")
+        jsonFile = open("voiceChatLog.json", "r")
+        data = json.load(jsonFile)
         for vchannel in category.voice_channels:
+            if data:
+                # remove current channel from the log
+                newJsonData = [d for d in data if d.get("id") != vchannel.id]
+                with open("voiceChatLog.json", "w") as file:
+                    json.dump(newJsonData, file, indent=4)
             await vchannel.delete(reason="Manuell gelöscht")
         await category.delete()
         await channel.send(f"Das projekt **{projectName}** wurde gelöscht von {ctx.author.mention} 🤖❌")
@@ -312,8 +319,15 @@ async def archive(ctx, projectName=""):
         for tchannel in category.text_channels:
             await tchannel.edit(overwrites=overwrites)
         
+        jsonFile = open("voiceChatLog.json", "r")
+        data = json.load(jsonFile)
         for vchannel in category.voice_channels:
-            await vchannel.edit(overwrites=overwrites)
+            if data:
+                # remove current channel from the log
+                newJsonData = [d for d in data if d.get("id") != vchannel.id]
+                with open("voiceChatLog.json", "w") as file:
+                    json.dump(newJsonData, file, indent=4)
+            await vchannel.delete(reason="Automatically deleted because project got archived")
 
         await category.edit(name=f"archive-{projectName}", reason="Moved to archive manually", position=newPosition, overwrites= overwrites)
         await channel.send(f"Das Projekt **{projectName}** wurde archiviert von {ctx.author.mention} 🤖🗄️")
@@ -330,8 +344,8 @@ async def autoArchive(guild):
         projectName = str(category)
         # discord gives us utc time, so we have to plus one to get utc 2
         timeSinceCreation = datetime.now() - (category.created_at + timedelta(hours=1))
-        # at the moment, if older than 20 minutes
-        if timeSinceCreation.seconds > 60*20:
+        # archive a projet automatically after 6 months
+        if timeSinceCreation.seconds >= 60*60*24*30*6:
             # move to end of all projects
             newPosition = len(guild.categories)
             # overwriting the permissions
@@ -342,8 +356,15 @@ async def autoArchive(guild):
             for tchannel in category.text_channels:
                 await tchannel.edit(overwrites=overwrites)
 
+            jsonFile = open("voiceChatLog.json", "r")
+            data = json.load(jsonFile)
             for vchannel in category.voice_channels:
-                await vchannel.edit(overwrites=overwrites)
+                if data:
+                    # remove current channel from the log
+                    newJsonData = [d for d in data if d.get("id") != vchannel.id]
+                    with open("voiceChatLog.json", "w") as file:
+                        json.dump(newJsonData, file, indent=4)
+                await vchannel.delete(reason="Automatically deleted because project got archived")
 
             await category.edit(name=f"archive-{projectName}", reason="Moved to archive automatically", position=newPosition, overwrites=overwrites)
             botchannel = discord.utils.get(guild.channels, id=int(BOTCHANNEL_ID))
@@ -351,6 +372,7 @@ async def autoArchive(guild):
             with open("botLog.log", "a+") as f:
                 f.write(str(datetime.now()) + f" {guild.me} - AutoArchive - {projectName} cmd\n")
 
+# checks channel usage and auto deletes unused things
 async def checkChannelUsage(guild):
     for category in guild.categories:
         # ignore archived stuff
@@ -363,12 +385,14 @@ async def checkChannelUsage(guild):
                 timeSinceCreation = datetime.now() - (tchannel.created_at + timedelta(hours=1))
                 soonDeletedMessage = f"Dieser Textchannel wird aufgrund von Inaktivität in 5 min gelöscht. Poste eine Nachricht darin um dies zu verhindern 🤖"
                 
-                # warn channel will be deleted if unused
-                if not tchannel.last_message_id and timeSinceCreation.seconds > 60*1:
+                # warn channel will be deleted if still unused after a week
+                goneTime = 60*60*24*7
+                if not tchannel.last_message_id and timeSinceCreation.seconds >= goneTime:
                     await tchannel.send(soonDeletedMessage)
                 
-                # delete if still unused after longer period
-                if timeSinceCreation.seconds > 60*2:
+                goneTime += 300
+                # delete if still unused after 5 more minutes
+                if timeSinceCreation.seconds >= goneTime:
                     lastMessage = await tchannel.fetch_message(tchannel.last_message_id)
                     if lastMessage.content == soonDeletedMessage and lastMessage.author == guild.me:
                         await tchannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
@@ -424,7 +448,24 @@ async def checkChannelUsage(guild):
 
                 with open("voiceChatLog.json", "w") as file:
                     json.dump(data, file, indent=4)
-                  
+
+            # delete unused channels
+            jsonFile = open("voiceChatLog.json", "r")
+            data = json.load(jsonFile)
+            shouldDelete = True
+            if data:
+                for d in data:
+                    if d.get("id") == vchannel.id:
+                        shouldDelete = False
+
+            timeSinceCreation = datetime.now() - (vchannel.created_at + timedelta(hours=1))
+            # delete if not used at all after 30 minutes
+            if shouldDelete and timeSinceCreation.seconds >= 60*30:
+                await vchannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
+                await botchannel.send(f"Der Voicechannel **{vchannel.name}** wurde aufgrund von Inaktivität gelöscht 🤖")
+                with open("botLog.log", "a+") as f:
+                    f.write(str(datetime.now()) + f" {guild.me} - autoDelete Voicechannel - {vchannel.name} cmd\n")
+
 
 
 # run this shit
