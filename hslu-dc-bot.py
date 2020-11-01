@@ -4,14 +4,15 @@ import discord
 import asyncio
 import re
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 BOTCHANNEL_ID = os.getenv('BOTCHANNEL_ID')
 ADMINGROUP_ID = os.getenv('ADMINGROUP_ID')
+SERVER_ID = os.getenv('SERVER_ID')
 
 # set up the bot object
 bot = commands.Bot(command_prefix='$', help_command=None)
@@ -118,6 +119,12 @@ def getFancyName():
 async def on_ready():
     with open("botLog.log", "a+") as f:
         f.write(str(datetime.now()) + f" {bot.user.name} - {bot.user.id} login\n")
+        
+    # this creates our auto archive task
+    while True:
+        await checkArchive(bot.guilds)
+        # execute every x seconds
+        await asyncio.sleep(5)
 
 
 @bot.command(name="help", aliases=["HELP","helpp","heelp","h"])
@@ -301,10 +308,43 @@ async def archive(ctx, projectName=""):
             await vchannel.edit(overwrites=overwrites)
 
         await category.edit(name=f"archive-{projectName}", reason="Moved to archive manually", position=newPosition, overwrites= overwrites)
-        await channel.send(f"Das projekt **{projectName}** wurde archiviert von {ctx.author.mention} 🤖🗄️")
+        await channel.send(f"Das Projekt **{projectName}** wurde archiviert von {ctx.author.mention} 🤖🗄️")
         with open("botLog.log", "a+") as f:
             f.write(str(datetime.now()) +
                     f" {ctx.author} - {ctx.command} - {projectName} cmd\n")
+
+# define a looping function
+async def checkArchive(guilds):
+    for guild in guilds:
+        if guild.id == int(SERVER_ID):
+            for category in guild.categories:
+                # dont rearchive already archived stuff
+                if str(category).startswith("archive"):
+                    continue
+                projectName = str(category)
+                # this gives us utc time, so we have to plus one to get utc 2
+                timeBetween = datetime.now() - (category.created_at + timedelta(hours=1))
+                # at the moment, if older than 20 minutes
+                if timeBetween.seconds > 60*20:
+                    # move to end of all projects
+                    newPosition = len(guild.categories)
+                    # overwriting the permissions
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                        guild.me: discord.PermissionOverwrite(read_messages=True),
+                    }
+                    for tchannel in category.text_channels:
+                        await tchannel.edit(overwrites=overwrites)
+
+                    for vchannel in category.voice_channels:
+                        await vchannel.edit(overwrites=overwrites)
+
+                    await category.edit(name=f"archive-{projectName}", reason="Moved to archive automatically", position=newPosition, overwrites=overwrites)
+                    botchannel = discord.utils.get(guild.channels, id=int(BOTCHANNEL_ID))
+                    await botchannel.send(f"Das Projekt **{projectName}** wurde automatisch archiviert von {guild.me} 🤖🗄️")
+                    with open("botLog.log", "a+") as f:
+                        f.write(str(datetime.now()) + f" {guild.me} - AutoArchive - {projectName} cmd\n")
+
 
 
 # run this shit
