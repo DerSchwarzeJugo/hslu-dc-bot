@@ -359,11 +359,14 @@ async def checkChannelUsage(guild):
         botchannel = discord.utils.get(category.text_channels, name="botcommands")
         for tchannel in category.text_channels:
             if str(tchannel) != "botcommands":
+                # get time since creation, discord time is utc
                 timeSinceCreation = datetime.now() - (tchannel.created_at + timedelta(hours=1))
                 soonDeletedMessage = f"Dieser Textchannel wird aufgrund von Inaktivität in 5 min gelöscht. Poste eine Nachricht darin um dies zu verhindern 🤖"
+                
                 # warn channel will be deleted if unused
                 if not tchannel.last_message_id and timeSinceCreation.seconds > 60*1:
                     await tchannel.send(soonDeletedMessage)
+                
                 # delete if still unused after longer period
                 if timeSinceCreation.seconds > 60*2:
                     lastMessage = await tchannel.fetch_message(tchannel.last_message_id)
@@ -373,8 +376,55 @@ async def checkChannelUsage(guild):
                         with open("botLog.log", "a+") as f:
                             f.write(str(datetime.now()) + f" {guild.me} - autoDelete Textchannel - {tchannel.name} cmd\n")
 
-        # for vchannel in category.voice_channels:
-        #     print(dir(vchannel))    
+        for vchannel in category.voice_channels:
+            currentVoiceState = vchannel.voice_states
+            if currentVoiceState:
+                entryAdded = False
+                # writing creation to log
+                jsonFile = open("voiceChatLog.json", "r")
+                data = json.load(jsonFile)
+                if not data:
+                    # create very first entry
+                    voiceLog = {
+                        "timestamp": str(datetime.now())
+                    }
+                    voiceEntry = {
+                        "id": vchannel.id,
+                        "name": vchannel.name,
+                        "category_id": vchannel.category.id,
+                        "created_at": str(vchannel.created_at),
+                        "usage": [voiceLog]
+                    }
+                    data.append(voiceEntry)
+                    entryAdded = True
+                else:
+                    for d in data:
+                        # check if this channel already exists
+                        if d.get("id") == vchannel.id:
+                            voiceLog = {
+                                "timestamp": str(datetime.now())
+                            }
+                            d.get("usage").append(voiceLog)
+                            entryAdded = True
+
+                    if not entryAdded:
+                        # create new entry
+                        voiceLog = {
+                            "timestamp": str(datetime.now())
+                        }
+                        voiceEntry = {
+                            "id": vchannel.id,
+                            "name": vchannel.name,
+                            "category_id": vchannel.category.id,
+                            "created_at": str(vchannel.created_at),
+                            "usage": [voiceLog]
+                        }
+                        data.append(voiceEntry)
+                        entryAdded = True
+
+                with open("voiceChatLog.json", "w") as file:
+                    json.dump(data, file, indent=4)
+                  
 
 
 # run this shit
