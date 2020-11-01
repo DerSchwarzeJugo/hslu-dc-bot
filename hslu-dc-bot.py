@@ -327,9 +327,9 @@ async def archive(ctx, projectName=""):
                 newJsonData = [d for d in data if d.get("id") != vchannel.id]
                 with open("voiceChatLog.json", "w") as file:
                     json.dump(newJsonData, file, indent=4)
-            await vchannel.delete(reason="Automatically deleted because project got archived")
+            await vchannel.delete(reason="Automatisch gelöscht, da das Projekt archiviert wurde")
 
-        await category.edit(name=f"archive-{projectName}", reason="Moved to archive manually", position=newPosition, overwrites= overwrites)
+        await category.edit(name=f"archive-{projectName}", reason="Manuell ins Archiv verschoben", position=newPosition, overwrites= overwrites)
         await channel.send(f"Das Projekt **{projectName}** wurde archiviert von {ctx.author.mention} 🤖🗄️")
         with open("botLog.log", "a+") as f:
             f.write(str(datetime.now()) +
@@ -378,12 +378,30 @@ async def checkChannelUsage(guild):
         # ignore archived stuff
         if str(category).startswith("archive"):
             continue
-        botchannel = discord.utils.get(category.text_channels, name="botcommands")
+        botcommandsChannel = discord.utils.get(category.text_channels, name="botcommands")
+        botchannel = discord.utils.get(guild.text_channels, name="botchannel")
+        # if only one textchannel in project
+        if len(category.text_channels) == 1 and category.text_channels[0] == botcommandsChannel and len(category.voice_channels) == 0:
+            soonDeletedMessage = f"Dieses Projekt wird aufgrund von Inaktivität in **30 min** gelöscht. \nErstelle einen neuen Text- oder Voicechat und nutze ihn, unbenutzte Voicechats werden 30 min nach Erstellung gelöscht, unbenutzte Textchats werden 7 Tage nach Erstellung gelöscht. Projekte ohne Channel werden nach 30 min gelöscht 🤖"
+            lastMessage = await botcommandsChannel.fetch_message(botcommandsChannel.last_message_id)
+            if lastMessage.content == soonDeletedMessage and lastMessage.author == guild.me:
+                timeSinceMessage = datetime.now() - (lastMessage.created_at + timedelta(hours=1))
+                goneTime = 60*30
+                if timeSinceMessage.seconds >= goneTime:
+                    await botchannel.send(f"Das Projekt **{category.name}** wurde aufgrund von Inaktivität gelöscht")
+                    await botcommandsChannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
+                    await category.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
+                    with open("botLog.log", "a+") as f:
+                        f.write(str(datetime.now()) + f" {guild.me} - autoDelete Project - {category.name} cmd\n")
+                
+            else:
+                await botcommandsChannel.send(soonDeletedMessage)
+
         for tchannel in category.text_channels:
             if str(tchannel) != "botcommands":
                 # get time since creation, discord time is utc
                 timeSinceCreation = datetime.now() - (tchannel.created_at + timedelta(hours=1))
-                soonDeletedMessage = f"Dieser Textchannel wird aufgrund von Inaktivität in 5 min gelöscht. Poste eine Nachricht darin um dies zu verhindern 🤖"
+                soonDeletedMessage = f"Dieser Textchannel wird aufgrund von Inaktivität in **5 min** gelöscht. Poste eine Nachricht darin um dies zu verhindern 🤖"
                 
                 # warn channel will be deleted if still unused after a week
                 goneTime = 60*60*24*7
@@ -396,7 +414,7 @@ async def checkChannelUsage(guild):
                     lastMessage = await tchannel.fetch_message(tchannel.last_message_id)
                     if lastMessage.content == soonDeletedMessage and lastMessage.author == guild.me:
                         await tchannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
-                        await botchannel.send(f"Der Textchannel **{tchannel.name}** wurde aufgrund von Inaktivität gelöscht 🤖")
+                        await botcommandsChannel.send(f"Der Textchannel **{tchannel.name}** wurde aufgrund von Inaktivität gelöscht 🤖")
                         with open("botLog.log", "a+") as f:
                             f.write(str(datetime.now()) + f" {guild.me} - autoDelete Textchannel - {tchannel.name} cmd\n")
 
@@ -462,7 +480,7 @@ async def checkChannelUsage(guild):
             # delete if not used at all after 30 minutes
             if shouldDelete and timeSinceCreation.seconds >= 60*30:
                 await vchannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
-                await botchannel.send(f"Der Voicechannel **{vchannel.name}** wurde aufgrund von Inaktivität gelöscht 🤖")
+                await botcommandsChannel.send(f"Der Voicechannel **{vchannel.name}** wurde aufgrund von Inaktivität gelöscht 🤖")
                 with open("botLog.log", "a+") as f:
                     f.write(str(datetime.now()) + f" {guild.me} - autoDelete Voicechannel - {vchannel.name} cmd\n")
 
