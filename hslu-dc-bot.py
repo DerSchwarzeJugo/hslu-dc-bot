@@ -14,6 +14,9 @@ BOTCHANNEL_ID = os.getenv('BOTCHANNEL_ID')
 ADMINGROUP_ID = os.getenv('ADMINGROUP_ID')
 SERVER_ID = os.getenv('SERVER_ID')
 
+# debug mode for the shorter timeframes for testing purposes
+DEBUG_MODE = False
+
 # set up the bot object
 bot = commands.Bot(command_prefix='$', help_command=None)
 
@@ -69,7 +72,7 @@ async def setUpHelpEmbed(ctx):
     adEmbed = discord.Embed(
         colour=discord.Colour.red(),
         title="BotHelp",
-        description=f"Admins functions"
+        description=f"Admin functions"
     )
     # botchannel help
     if ctx.channel.id == int(BOTCHANNEL_ID):
@@ -132,6 +135,25 @@ async def on_ready():
         else:
             continue
 
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+    if message.content.startswith(("Hi", "Hallo", "Hello", "hi", "hallo", "hello")):
+        await message.channel.send(f"Hallo {message.author} 🦾🤖👋")
+    
+    if message.content.startswith(("danke", "Danke", "merci", "Merci")):
+        await message.add_reaction("👍")
+
+    if bot.user in message.mentions:
+        if isinstance(message.channel, discord.TextChannel):
+            await message.add_reaction("👀")
+        else:
+            await message.channel.send(f"Alles in Butter? 🤖👂")
+
+    # needed to allow commands and messages
+    await bot.process_commands(message)
 
 @bot.command(name="help", aliases=["HELP","helpp","heelp","h"])
 async def help(ctx):
@@ -332,20 +354,25 @@ async def archive(ctx, projectName=""):
         await category.edit(name=f"archive-{projectName}", reason="Manuell ins Archiv verschoben", position=newPosition, overwrites= overwrites)
         await channel.send(f"Das Projekt **{projectName}** wurde archiviert von {ctx.author.mention} 🤖🗄️")
         with open("botLog.log", "a+") as f:
-            f.write(str(datetime.now()) +
-                    f" {ctx.author} - {ctx.command} - {projectName} cmd\n")
+            f.write(str(datetime.now()) + f" {ctx.author} - {ctx.command} - {projectName} cmd\n")
 
-# define a looping function
+# automatically archives projects
 async def autoArchive(guild):
     for category in guild.categories:
         # dont rearchive already archived stuff
         if str(category).startswith("archive"):
             continue
+        # dont archive unnecessary stuff
+        if len(category.text_channels) == 1 and category.text_channels[0].name == "botcommands" and len(category.voice_channels) == 0:
+            continue
         projectName = str(category)
         # discord gives us utc time, so we have to plus one to get utc 2
         timeSinceCreation = datetime.now() - (category.created_at + timedelta(hours=1))
         # archive a projet automatically after 6 months
-        if timeSinceCreation.seconds >= 60*60*24*30*6:
+        timePeriod = 60*60*24*30*6
+        if DEBUG_MODE:
+            timePeriod = 60
+        if timeSinceCreation.seconds >= timePeriod:
             # move to end of all projects
             newPosition = len(guild.categories)
             # overwriting the permissions
@@ -364,7 +391,7 @@ async def autoArchive(guild):
                     newJsonData = [d for d in data if d.get("id") != vchannel.id]
                     with open("voiceChatLog.json", "w") as file:
                         json.dump(newJsonData, file, indent=4)
-                await vchannel.delete(reason="Automatically deleted because project got archived")
+                await vchannel.delete(reason="Automatisch gelöscht, da das Projekt archiviert wurde")
 
             await category.edit(name=f"archive-{projectName}", reason="Moved to archive automatically", position=newPosition, overwrites=overwrites)
             botchannel = discord.utils.get(guild.channels, id=int(BOTCHANNEL_ID))
@@ -386,8 +413,10 @@ async def checkChannelUsage(guild):
             lastMessage = await botcommandsChannel.fetch_message(botcommandsChannel.last_message_id)
             if lastMessage.content == soonDeletedMessage and lastMessage.author == guild.me:
                 timeSinceMessage = datetime.now() - (lastMessage.created_at + timedelta(hours=1))
-                goneTime = 60*30
-                if timeSinceMessage.seconds >= goneTime:
+                timePeriod = 60*30
+                if DEBUG_MODE:
+                    timePeriod = 20
+                if timeSinceMessage.seconds >= timePeriod:
                     await botchannel.send(f"Das Projekt **{category.name}** wurde aufgrund von Inaktivität gelöscht")
                     await botcommandsChannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
                     await category.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
@@ -401,16 +430,20 @@ async def checkChannelUsage(guild):
             if str(tchannel) != "botcommands":
                 # get time since creation, discord time is utc
                 timeSinceCreation = datetime.now() - (tchannel.created_at + timedelta(hours=1))
-                soonDeletedMessage = f"Dieser Textchannel wird aufgrund von Inaktivität in **5 min** gelöscht. Poste eine Nachricht darin um dies zu verhindern 🤖"
+                soonDeletedMessage = f"Dieser Textchannel wird aufgrund von Inaktivität in **5 min** gelöscht. Schreibe hier eine Nachricht um dies zu verhindern 🤖"
                 
                 # warn channel will be deleted if still unused after a week
-                goneTime = 60*60*24*7
-                if not tchannel.last_message_id and timeSinceCreation.seconds >= goneTime:
+                timePeriod = 60*60*24*7
+                if DEBUG_MODE:
+                    timePeriod = 10
+                if not tchannel.last_message_id and timeSinceCreation.seconds >= timePeriod:
                     await tchannel.send(soonDeletedMessage)
                 
-                goneTime += 300
+                timePeriod += 300
+                if DEBUG_MODE:
+                    timePeriod = 20
                 # delete if still unused after 5 more minutes
-                if timeSinceCreation.seconds >= goneTime:
+                if timeSinceCreation.seconds >= timePeriod:
                     lastMessage = await tchannel.fetch_message(tchannel.last_message_id)
                     if lastMessage.content == soonDeletedMessage and lastMessage.author == guild.me:
                         await tchannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
@@ -478,7 +511,10 @@ async def checkChannelUsage(guild):
 
             timeSinceCreation = datetime.now() - (vchannel.created_at + timedelta(hours=1))
             # delete if not used at all after 30 minutes
-            if shouldDelete and timeSinceCreation.seconds >= 60*30:
+            timePeriod = 60*30
+            if DEBUG_MODE:
+                timePeriod = 15
+            if shouldDelete and timeSinceCreation.seconds >= timePeriod:
                 await vchannel.delete(reason="Automatisch gelöscht aufgrund von Inaktivität")
                 await botcommandsChannel.send(f"Der Voicechannel **{vchannel.name}** wurde aufgrund von Inaktivität gelöscht 🤖")
                 with open("botLog.log", "a+") as f:
