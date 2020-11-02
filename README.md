@@ -7,11 +7,16 @@ Possibility to add more channels inside the category, as well as adding permissi
 For visibility purposes, projects can not be named the same like others (channels can).
 Also Commands are only allowed in a specific channel
 
+Automatically moves projects to an archive, auto-deletes unused text- & voicechannels. It also says hello and reacts to some of your messages.
+
+
 Legend:
 
-CAPITAL = parameters
-[] = optional arguments
-$ = command prefix
+**CAPITAL** = parameters
+
+**[ ]** = optional arguments
+
+**$** = command prefix
 
 **$help** can be typed in the botchannel and in the created Projects inside the botcommands channel to show this help section and give clues about short forms of the methods
 
