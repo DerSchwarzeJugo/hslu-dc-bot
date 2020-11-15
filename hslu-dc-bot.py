@@ -56,7 +56,7 @@ async def adminCheck(ctx, channel):
 
 # if command in a botcommands channel
 async def innerChannelCheck(ctx, channel):
-    if  channel.name != "botcommands":
+dflajsdfjaldjfldsfj   if  channel.name != "botcommands":
         await channel.send("Neue Chats innerhalb von Projekten können nur im jeweiligen botcommands channel angelegt werden 🤖")
         return False
     return True
@@ -103,7 +103,7 @@ async def setUpInlineHelpEmbed(channel):
     if channel.name == "botcommands":
         help = f'[{cp}nt | {cp}nT] \nErzeugt einen neuen Textchat in diesem Projekt\n--> {cp}newText | {cp}newText NAME'
         embed.add_field(name=f"{cp}newText", value=help, inline=False)
-        help = f'[{cp}nV | {cp}nV] \nErzeugt einen neuen Voicechat in diesem Projekt\n--> {cp}nv | {cp}nv NAME'
+        help = f'[{cp}nv | {cp}nV] \nErzeugt einen neuen Voicechat in diesem Projekt\n--> {cp}nv | {cp}nv NAME'
         embed.add_field(name=f"{cp}newVoice", value=help, inline=False)
         await channel.send(embed=embed)
 
