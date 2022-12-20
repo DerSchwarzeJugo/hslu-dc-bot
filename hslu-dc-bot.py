@@ -5,7 +5,7 @@ import discord
 import asyncio
 import re
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
 
@@ -16,10 +16,12 @@ ADMINGROUP_ID = os.getenv('ADMINGROUP_ID')
 SERVER_ID = os.getenv('SERVER_ID')
 
 # debug mode for the shorter timeframes for testing purposes
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 intents = discord.Intents.default()
 intents.message_content = True
+
+timeZone = timezone.utc
 
 # set up the bot object
 bot = commands.Bot(command_prefix='$', help_command=None, intents=intents)
@@ -371,7 +373,7 @@ async def autoArchive(guild):
 			continue
 		projectName = str(category)
 		# discord gives us utc time, so we have to plus one to get utc 2
-		timeSinceCreation = datetime.now() - (category.created_at + timedelta(hours=1))
+		timeSinceCreation = datetime.now(timeZone) - category.created_at
 		# archive a projet automatically after 6 months
 		timePeriod = 60*60*24*30*6
 		if DEBUG_MODE:
@@ -416,7 +418,7 @@ async def checkChannelUsage(guild):
 			soonDeletedMessage = f"Dieses Projekt wird aufgrund von Inaktivität in **30 min** gelöscht. \nErstelle einen neuen Text- oder Voicechat und nutze ihn, unbenutzte Voicechats werden 30 min nach Erstellung gelöscht, unbenutzte Textchats werden 7 Tage nach Erstellung gelöscht. Projekte ohne Channel werden nach 30 min gelöscht 🤖"
 			lastMessage = await botcommandsChannel.fetch_message(botcommandsChannel.last_message_id)
 			if lastMessage.content == soonDeletedMessage and lastMessage.author == guild.me:
-				timeSinceMessage = datetime.now() - (lastMessage.created_at + timedelta(hours=1))
+				timeSinceMessage = datetime.now(timeZone) - lastMessage.created_at
 				timePeriod = 60*30
 				if DEBUG_MODE:
 					timePeriod = 20
@@ -433,7 +435,7 @@ async def checkChannelUsage(guild):
 		for tchannel in category.text_channels:
 			if str(tchannel) != "botcommands":
 				# get time since creation, discord time is utc
-				timeSinceCreation = datetime.now() - (tchannel.created_at + timedelta(hours=1))
+				timeSinceCreation = datetime.now(timeZone) - tchannel.created_at
 				soonDeletedMessage = f"Dieser Textchannel wird aufgrund von Inaktivität in **5 min** gelöscht. Schreibe hier eine Nachricht um dies zu verhindern 🤖"
 				
 				# warn channel will be deleted if still unused after a week
@@ -513,7 +515,7 @@ async def checkChannelUsage(guild):
 					if d.get("id") == vchannel.id:
 						shouldDelete = False
 
-			timeSinceCreation = datetime.now() - (vchannel.created_at + timedelta(hours=1))
+			timeSinceCreation = datetime.now(timeZone) - vchannel.created_at
 			# delete if not used at all after 30 minutes
 			timePeriod = 60*30
 			if DEBUG_MODE:
