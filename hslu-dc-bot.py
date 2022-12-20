@@ -16,10 +16,13 @@ ADMINGROUP_ID = os.getenv('ADMINGROUP_ID')
 SERVER_ID = os.getenv('SERVER_ID')
 
 # debug mode for the shorter timeframes for testing purposes
-DEBUG_MODE = False
+DEBUG_MODE = True
+
+intents = discord.Intents.default()
+intents.message_content = True
 
 # set up the bot object
-bot = commands.Bot(command_prefix='$', help_command=None)
+bot = commands.Bot(command_prefix='$', help_command=None, intents=intents)
 
 # if command not in botchannel
 async def channelCheck(ctx, channel):
